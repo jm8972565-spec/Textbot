@@ -1,0 +1,11 @@
+import "dotenv/config";
+import express from "express";
+import OpenAI from "openai";
+import path from "path";
+import { fileURLToPath } from "url";
+const app=express(); const __filename=fileURLToPath(import.meta.url); const __dirname=path.dirname(__filename);
+const openai=new OpenAI({apiKey:process.env.OPENAI_API_KEY});
+app.use(express.json({limit:"1mb"})); app.use(express.static(path.join(__dirname,"public")));
+app.post("/api/generate",async(req,res)=>{try{const {request="",business="",details="",style="Професионален",language="Български"}=req.body||{}; if(!request.trim()) return res.status(400).json({error:"Моля, опиши какъв текст искаш."}); const prompt=`Ти си TextBot — професионален AI копирайтър за бизнеси.\nНапиши готов за използване текст.\nТип текст: ${request}\nБизнес/цел: ${business||"Не е уточнено"}\nДопълнителни изисквания: ${details||"Няма"}\nСтил: ${style}\nЕзик: ${language}\nПравила: Пиши естествено и убедително. Не измисляй конкретни факти, цени, адреси или обещания, ако не са дадени. Не обяснявай процеса. Върни само готовия текст.`; const response=await openai.responses.create({model:process.env.OPENAI_MODEL||"gpt-5.2",instructions:"You are TextBot, a high-quality business copywriter.",input:prompt,reasoning:{effort:"none"},max_output_tokens:1200}); res.json({text:response.output_text});}catch(e){console.error(e);res.status(500).json({error:"Възникна грешка при AI генерацията. Провери API ключа и настройките на сървъра."});}});
+app.get("*",(req,res)=>res.sendFile(path.join(__dirname,"public","index.html")));
+app.listen(process.env.PORT||3000,()=>console.log(`TextBot running on http://localhost:${process.env.PORT||3000}`));
