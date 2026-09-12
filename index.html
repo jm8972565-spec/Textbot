@@ -1,1 +1,173 @@
-<!doctype html><html lang="bg"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TextBot — AI, който пише вместо теб</title><style>*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f5f8fc;color:#142033}header{background:#0b1730;color:#fff;padding:18px 5%;display:flex;align-items:center;justify-content:space-between}.logo{font-size:24px;font-weight:800}.logo span{color:#5aa7ff}nav{display:flex;gap:22px}nav a{color:#fff;text-decoration:none}.hero{padding:64px 5% 35px;text-align:center;background:linear-gradient(180deg,#eef6ff,#f5f8fc)}h1{font-size:44px;margin:0 0 12px}.hero p{font-size:18px;color:#617089;margin:0 auto 30px;max-width:680px}.wrap{max-width:1050px;margin:auto;padding:0 20px 60px}.card{background:#fff;border:1px solid #e3eaf3;border-radius:22px;box-shadow:0 12px 35px #15315814;padding:26px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.full{grid-column:1/-1}label{display:block;font-weight:700;font-size:14px;margin-bottom:8px}textarea,input,select{width:100%;border:1px solid #d7e0eb;border-radius:12px;padding:13px;font-size:15px;background:#fbfdff}textarea{resize:vertical}.actions{display:flex;gap:12px;align-items:center;margin-top:18px;flex-wrap:wrap}button{border:0;border-radius:12px;padding:13px 20px;font-weight:800;cursor:pointer}.primary{background:#287ff0;color:#fff}.secondary{background:#edf4fc;color:#23466f}.result{margin-top:22px;background:#f8fbff;border:1px solid #dfe8f3;border-radius:16px;padding:20px;white-space:pre-wrap;line-height:1.6;min-height:130px}.status{font-size:14px;color:#53657c}.features{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-top:22px}.feature{background:#fff;border:1px solid #e3eaf3;border-radius:16px;padding:18px}.feature b{display:block;margin-bottom:6px}footer{text-align:center;color:#718096;padding:30px}@media(max-width:750px){h1{font-size:34px}.grid,.features{grid-template-columns:1fr}nav{display:none}}</style></head><body><header><div class="logo">Text<span>Bot</span> 🤖</div><nav><a href="#generator">Генератор</a><a href="#how">Как работи</a></nav></header><section class="hero"><h1>TextBot — AI, който пише вместо теб.</h1><p>Опиши какво ти трябва. TextBot създава готов професионален текст за секунди.</p></section><main class="wrap" id="generator"><div class="card"><div class="grid"><div><label>Какъв текст искаш?</label><input id="request" placeholder="Напр. Facebook реклама за нов продукт"></div><div><label>За какъв бизнес/цел е?</label><input id="business" placeholder="Напр. онлайн магазин за спортни обувки"></div><div class="full"><label>Какво трябва да съдържа?</label><textarea id="details" rows="4" placeholder="Основни детайли, оферта, аудитория, призив за действие..."></textarea></div><div><label>Стил</label><select id="style"><option>Професионален</option><option>Приятелски</option><option>Продаващ</option><option>Кратък</option><option>Подробен</option></select></div><div><label>Език</label><select id="language"><option>Български</option><option>English</option><option>Deutsch</option><option>Français</option><option>Italiano</option></select></div></div><div class="actions"><button class="primary" id="generate">✨ Генерирай с AI</button><button class="secondary" id="copy">Копирай</button><button class="secondary" id="download">Изтегли .txt</button><span class="status" id="status"></span></div><div class="result" id="result">Тук ще се появи готовият текст...</div></div><div class="features" id="how"><div class="feature"><b>⚡ Бързо</b>Готов текст за секунди.</div><div class="feature"><b>🎯 За бизнес</b>Реклами, постове, имейли и още.</div><div class="feature"><b>🌍 Много езици</b>Съдържание на различни езици.</div></div></main><footer>© 2026 TextBot — AI, който пише вместо теб.</footer><script>const $=id=>document.getElementById(id);let lastText="";$('generate').onclick=async()=>{const request=$('request').value.trim();if(!request){$('status').textContent='Напиши първо какъв текст искаш.';return}$('generate').disabled=true;$('status').textContent='AI пише...';$('result').textContent='Генерирам текста...';try{const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request,business:$('business').value,details:$('details').value,style:$('style').value,language:$('language').value})});const data=await r.json();if(!r.ok)throw new Error(data.error||'Грешка');lastText=data.text;$('result').textContent=lastText;$('status').textContent='Готово ✓'}catch(e){$('result').textContent=e.message;$('status').textContent='Провери настройките.'}finally{$('generate').disabled=false}};$('copy').onclick=async()=>{if(!lastText)return;await navigator.clipboard.writeText(lastText);$('status').textContent='Копирано ✓'};$('download').onclick=()=>{if(!lastText)return;const blob=new Blob([lastText],{type:'text/plain;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='textbot-text.txt';a.click();URL.revokeObjectURL(a.href)};</script></body></html>
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TextBot — AI, който пише вместо теб</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#eef4fb;color:#17233d}
+header{background:#0d1730;color:white;padding:28px 6%;font-size:34px;font-weight:800}
+header span{color:#69a8ff}
+main{max-width:1050px;margin:auto;padding:55px 20px}
+.hero{text-align:center;margin-bottom:45px}
+h1{font-size:48px;margin:10px 0}
+.hero p{font-size:21px;color:#66748d}
+.card{background:white;border-radius:28px;padding:30px;margin-bottom:35px;box-shadow:0 8px 30px #d8e1ee}
+label{display:block;font-weight:700;font-size:18px;margin:18px 0 8px}
+input,textarea,select{width:100%;padding:16px;border:2px solid #d9e3f0;border-radius:15px;font-size:17px}
+textarea{min-height:120px}
+button{border:0;border-radius:15px;padding:16px 25px;font-size:17px;font-weight:700;cursor:pointer;background:#287ff0;color:white;margin-top:18px}
+button.secondary{background:#e8f0fa;color:#23466f}
+.result{white-space:pre-wrap;line-height:1.6;min-height:150px}
+.prices{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.price{border:2px solid #e0e8f3;border-radius:22px;padding:25px;text-align:center}
+.price h3{font-size:25px;margin:5px}
+.amount{font-size:34px;font-weight:800;margin:15px}
+.price ul{text-align:left;line-height:2}
+footer{text-align:center;padding:35px;color:#71809a}
+@media(max-width:750px){h1{font-size:38px}.prices{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>Text<span>Bot</span> 🤖</header>
+
+<main>
+<section class="hero">
+<h1>TextBot — AI, който пише вместо теб.</h1>
+<p>Опиши какво ти трябва. TextBot създава готов професионален текст за секунди.</p>
+</section>
+
+<section class="card">
+<label>Какъв текст искаш?</label>
+<input id="request" placeholder="Напр. Facebook реклама за нов продукт">
+
+<label>За какъв бизнес/цел е?</label>
+<input id="business" placeholder="Напр. онлайн магазин за спортни обувки">
+
+<label>Какво трябва да съдържа?</label>
+<textarea id="details" placeholder="Основни детайли, оферта, аудитория, призив за действие..."></textarea>
+
+<label>Стил</label>
+<select id="style">
+<option>Професионален</option>
+<option>Приятелски</option>
+<option>Продаващ</option>
+<option>Кратък</option>
+<option>Подробен</option>
+</select>
+
+<label>Език</label>
+<select id="language">
+<option>Български</option>
+<option>English</option>
+<option>Deutsch</option>
+<option>Español</option>
+</select>
+
+<button onclick="generate()">✨ Генерирай с AI</button>
+<button class="secondary" onclick="copyText()">Копирай</button>
+<button class="secondary" onclick="downloadText()">Изтегли .txt</button>
+
+<div class="card">
+<div id="result" class="result">Тук ще се появи готовият текст...</div>
+</div>
+</section>
+
+<section class="hero">
+<h2>Цени</h2>
+<p>Избери план и използвай TextBot за своя бизнес.</p>
+</section>
+
+<section class="prices">
+
+<div class="price">
+<h3>Free</h3>
+<div class="amount">€0</div>
+<ul>
+<li>5 AI текста месечно</li>
+<li>Основни функции</li>
+</ul>
+<button class="secondary">Текущ план</button>
+</div>
+
+<div class="price">
+<h3>Basic ⭐</h3>
+<div class="amount">€9.99</div>
+<p>на месец</p>
+<ul>
+<li>100 AI текста месечно</li>
+<li>Всички основни функции</li>
+<li>Професионални текстове</li>
+</ul>
+<button onclick="checkout()">Абонирай се</button>
+</div>
+
+<div class="price">
+<h3>Pro 🚀</h3>
+<div class="amount">€19.99</div>
+<p>на месец</p>
+<ul>
+<li>500 AI текста месечно</li>
+<li>Повече възможности</li>
+<li>Приоритетно използване</li>
+</ul>
+<button class="secondary">Очаквайте скоро</button>
+</div>
+
+</section>
+</main>
+
+<footer>© 2026 TextBot — AI, който пише вместо теб.</footer>
+
+<script>
+async function generate(){
+ const result=document.getElementById("result");
+ result.textContent="Генерирам текста...";
+ try{
+  const r=await fetch("/api/generate",{
+   method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({
+    request:document.getElementById("request").value,
+    business:document.getElementById("business").value,
+    details:document.getElementById("details").value,
+    style:document.getElementById("style").value,
+    language:document.getElementById("language").value
+   })
+  });
+  const data=await r.json();
+  if(!r.ok) throw new Error(data.error||"Грешка");
+  result.textContent=data.text||"Няма получен текст.";
+ }catch(e){
+  result.textContent="Грешка: "+e.message;
+ }
+}
+
+function copyText(){
+ navigator.clipboard.writeText(document.getElementById("result").textContent);
+}
+
+function downloadText(){
+ const text=document.getElementById("result").textContent;
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"}));
+ a.download="textbot.txt";
+ a.click();
+}
+
+async function checkout(){
+ try{
+  const r=await fetch("/api/create-checkout",{method:"POST"});
+  const data=await r.json();
+  if(!r.ok) throw new Error(data.error||"Stripe грешка");
+  window.location.href=data.url;
+ }catch(e){
+  alert("Неуспешно отваряне на плащането: "+e.message);
+ }
+}
+</script>
+
+</body>
+</html>
