@@ -2,8 +2,9 @@ import "dotenv/config";
 import express from "express";
 import OpenAI from "openai";
 import path from "path";
-import { fileURLToPath } from "url";
 import crypto from "crypto";
+import { fileURLToPath } from "url";
+
 const app = express();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -12,117 +13,151 @@ const __dirname = path.dirname(__filename);
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
-app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), (req, res) => {
-  try {
-    const signature = req.headers["stripe-signature"];
-    const secret = process.env.STRIPE_WEBHOOK_SECRET;
-    const rawBody = req.body.toString("utf8");
 
-    if (!signature || !secret) {
-      return res.status(400).send("Missing Stripe signature");
+/* =========================
+   STRIPE WEBHOOK
+   ========================= */
+
+app.post(
+  "/api/stripe-webhook",
+  express.raw({ type: "application/json" }),
+  (req, res) => {
+    try {
+      const signature = req.headers["stripe-signature"];
+      const secret = process.env.STRIPE_WEBHOOK_SECRET;
+      const rawBody = req.body.toString("utf8");
+
+      if (!signature || !secret) {
+        return res.status(400).send("Missing Stripe signature");
+      }
+
+      const parts = signature.split(",");
+
+      const timestamp = parts
+        .find((p) => p.startsWith("t="))
+        ?.slice(2);
+
+      const signatures = parts
+        .filter((p) => p.startsWith("v1="))
+        .map((p) => p.slice(3));
+
+      if (!timestamp || signatures.length === 0) {
+        return res.status(400).send("Invalid Stripe signature");
+      }
+
+      const age = Math.abs(Date.now() / 1000 - Number(timestamp));
+
+      if (age > 300) {
+        return res.status(400).send("Expired webhook");
+      }
+
+      const signedPayload = `${timestamp}.${rawBody}`;
+
+      const expectedSignature = crypto
+        .createHmac("sha256", secret)
+        .update(signedPayload)
+        .digest("hex");
+
+      const valid = signatures.some((sig) => {
+        const a = Buffer.from(sig, "utf8");
+        const b = Buffer.from(expectedSignature, "utf8");
+
+        return (
+          a.length === b.length &&
+          crypto.timingSafeEqual(a, b)
+        );
+      });
+
+      if (!valid) {
+        return res.status(400).send("Invalid signature");
+      }
+
+      const event = JSON.parse(rawBody);
+
+      console.log("Stripe webhook:", event.type);
+
+      if (event.type === "checkout.session.completed") {
+        const session = event.data.object;
+
+        console.log(
+          "TextBot: Basic subscription completed.",
+          session.customer_details?.email || "no email"
+        );
+      }
+
+      res.json({ received: true });
+    } catch (error) {
+      console.error("Webhook error:", error);
+      res.status(400).send("Invalid webhook");
     }
-
-    const parts = signature.split(",");
-    const timestamp = parts.find((p) => p.startsWith("t="))?.split("=")[1];
-    const signatures = parts
-      .filter((p) => p.startsWith("v1="))
-      .map((p) => p.split("=")[1]);
-
-    if (!timestamp || signatures.length === 0) {
-      return res.status(400).send("Invalid Stripe signature");
-    }
-
-    if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) {
-      return res.status(400).send("Expired webhook");
-    }
-
-    const signedPayload = `${timestamp}.${rawBody}`;
-
-    const expectedSignature = crypto
-      .createHmac("sha256", secret)
-      .update(signedPayload)
-      .digest("hex");
-
-    const valid = signatures.some((sig) => {
-      const a = Buffer.from(sig, "utf8");
-      const b = Buffer.from(expectedSignature, "utf8");
-
-      return a.length === b.length && crypto.timingSafeEqual(a, b);
-    });
-
-    if (!valid) {
-      return res.status(400).send("Invalid signature");
-    }
-
-    const event = JSON.parse(rawBody);
-
-    console.log("Stripe webhook:", event.type);
-
-    if (event.type === "checkout.session.completed") {
-      console.log("TextBot: Basic subscription completed.");
-    }
-
-    res.json({ received: true });
-  } catch (error) {
-    console.error("Webhook error:", error);
-    res.status(400).send("Invalid webhook");
   }
-});
+);
+
+/* =========================
+   JSON API
+   ========================= */
+
 app.use(express.json({ limit: "1mb" }));
-app.use(express.static(__dirname));
+
+/* =========================
+   AI GENERATOR
+   ========================= */
 
 app.post("/api/generate", async (req, res) => {
   try {
     const {
-      request = "",
-      business = "",
-      details = "",
-      style = "Професионален",
-      language = "Български"
-    } = req.body || {};
+      textType,
+      business,
+      details,
+      style,
+      language
+    } = req.body;
 
-    if (!request.trim()) {
-      return res.status(400).json({
-        error: "Моля, опиши какъв текст искаш."
-      });
-    }
+    const prompt = `
+Ти си TextBot — професионален AI копирайтър.
 
-    const prompt = `Ти си TextBot — професионален AI копирайтър за бизнеси.
+Напиши качествен текст според следните данни:
 
-Напиши готов за използване текст.
+Тип текст:
+${textType || "Не е посочен"}
 
-Тип текст: ${request}
-Бизнес/цел: ${business || "Не е уточнено"}
-Допълнителни изисквания: ${details || "Няма"}
-Стил: ${style}
-Език: ${language}
+Бизнес / цел:
+${business || "Не е посочен"}
 
-Правила:
-Пиши естествено и убедително.
-Не измисляй конкретни факти, цени, адреси или обещания, ако не са дадени.
-Не обяснявай процеса.
-Върни само готовия текст.`;
+Какво трябва да съдържа:
+${details || "Не е посочено"}
+
+Стил:
+${style || "Професионален"}
+
+Език:
+${language || "Български"}
+
+Пиши естествено, ясно и професионално.
+Не обяснявай какво правиш.
+Дай директно готовия текст за използване.
+`;
 
     const response = await openai.responses.create({
       model: process.env.OPENAI_MODEL || "gpt-5.2",
-      instructions: "You are TextBot, a high-quality business copywriter.",
-      input: prompt,
-      reasoning: { effort: "none" },
-      max_output_tokens: 1200
+      input: prompt
     });
 
     res.json({
       text: response.output_text
     });
-
   } catch (error) {
-    console.error(error);
+    console.error("OpenAI error:", error);
 
     res.status(500).json({
-      error: "Възникна грешка при AI генерацията."
+      error: "AI generation failed"
     });
   }
 });
+
+/* =========================
+   STRIPE CHECKOUT
+   ========================= */
 
 app.post("/api/create-checkout", async (req, res) => {
   try {
@@ -130,60 +165,78 @@ app.post("/api/create-checkout", async (req, res) => {
 
     if (!priceId) {
       return res.status(500).json({
-        error: "Stripe Basic Price ID не е настроен."
+        error: "Stripe price is not configured"
       });
     }
 
-    const host = req.get("host");
-    const protocol = req.get("x-forwarded-proto") || "https";
-    const baseUrl = `${protocol}://${host}`;
+    const baseUrl =
+      process.env.APP_URL ||
+      "https://textbot-ai-bg.onrender.com";
 
-    const body = new URLSearchParams();
+    const params = new URLSearchParams();
 
-    body.append("mode", "subscription");
-    body.append("line_items[0][price]", priceId);
-    body.append("line_items[0][quantity]", "1");
-    body.append("success_url", `${baseUrl}/?payment=success`);
-    body.append("cancel_url", `${baseUrl}/?payment=cancelled`);
+    params.append("mode", "subscription");
+    params.append("line_items[0][price]", priceId);
+    params.append("line_items[0][quantity]", "1");
 
-    const stripeResponse = await fetch(
+    params.append(
+      "success_url",
+      `${baseUrl}/?payment=success`
+    );
+
+    params.append(
+      "cancel_url",
+      `${baseUrl}/?payment=cancelled`
+    );
+
+    const response = await fetch(
       "https://api.stripe.com/v1/checkout/sessions",
       {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${process.env.STRIPE_SECRET_KEY}`,
-          "Content-Type": "application/x-www-form-urlencoded"
+          Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+          "Content-Type":
+            "application/x-www-form-urlencoded"
         },
-        body
+        body: params.toString()
       }
     );
 
-    const session = await stripeResponse.json();
+    const session = await response.json();
 
-    if (!stripeResponse.ok) {
-      console.error(session);
+    if (!response.ok) {
+      console.error("Stripe error:", session);
 
       return res.status(500).json({
-        error: "Stripe не успя да създаде плащането."
+        error: "Stripe checkout failed"
       });
     }
 
     res.json({
       url: session.url
     });
-
   } catch (error) {
-    console.error(error);
+    console.error("Checkout error:", error);
 
     res.status(500).json({
-      error: "Възникна грешка при Stripe."
+      error: "Stripe checkout failed"
     });
   }
 });
 
+/* =========================
+   WEBSITE
+   ========================= */
+
+app.use(express.static(__dirname));
+
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
+
+/* =========================
+   SERVER
+   ========================= */
 
 const port = process.env.PORT || 10000;
 
