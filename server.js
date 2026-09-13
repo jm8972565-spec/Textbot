@@ -3,7 +3,7 @@ import express from "express";
 import OpenAI from "openai";
 import path from "path";
 import { fileURLToPath } from "url";
-
+import crypto from "crypto";
 const app = express();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,7 +14,47 @@ const openai = new OpenAI({
 });
 app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), (req, res) => {
   try {
-    const event = JSON.parse(req.body.toString());
+    const signature = req.headers["stripe-signature"];
+    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    const rawBody = req.body.toString("utf8");
+
+    if (!signature || !secret) {
+      return res.status(400).send("Missing Stripe signature");
+    }
+
+    const parts = signature.split(",");
+    const timestamp = parts.find((p) => p.startsWith("t="))?.split("=")[1];
+    const signatures = parts
+      .filter((p) => p.startsWith("v1="))
+      .map((p) => p.split("=")[1]);
+
+    if (!timestamp || signatures.length === 0) {
+      return res.status(400).send("Invalid Stripe signature");
+    }
+
+    if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) {
+      return res.status(400).send("Expired webhook");
+    }
+
+    const signedPayload = `${timestamp}.${rawBody}`;
+
+    const expectedSignature = crypto
+      .createHmac("sha256", secret)
+      .update(signedPayload)
+      .digest("hex");
+
+    const valid = signatures.some((sig) => {
+      const a = Buffer.from(sig, "utf8");
+      const b = Buffer.from(expectedSignature, "utf8");
+
+      return a.length === b.length && crypto.timingSafeEqual(a, b);
+    });
+
+    if (!valid) {
+      return res.status(400).send("Invalid signature");
+    }
+
+    const event = JSON.parse(rawBody);
 
     console.log("Stripe webhook:", event.type);
 
