@@ -12,7 +12,22 @@ const __dirname = path.dirname(__filename);
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
+app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), (req, res) => {
+  try {
+    const event = JSON.parse(req.body.toString());
 
+    console.log("Stripe webhook:", event.type);
+
+    if (event.type === "checkout.session.completed") {
+      console.log("TextBot: Basic subscription completed.");
+    }
+
+    res.json({ received: true });
+  } catch (error) {
+    console.error("Webhook error:", error);
+    res.status(400).send("Invalid webhook");
+  }
+});
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(__dirname));
 
