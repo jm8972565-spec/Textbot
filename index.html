@@ -121,6 +121,15 @@ footer{text-align:center;padding:35px;color:#71809a}
 
 <footer>© 2026 TextBot — AI, който пише вместо теб.</footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+ <script>
+const SUPABASE_URL = "https://hovdyxykqrxglieqocxh.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_77U7BmTHavIJAtImLqLnvw_AoHC51HU
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
+</script>
 <script>
 async function generate(){
  const result=document.getElementById("result");
