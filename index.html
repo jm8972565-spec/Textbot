@@ -120,7 +120,7 @@ footer{text-align:center;padding:35px;color:#71809a}
 </main>
 
 <footer>© 2026 TextBot — AI, който пише вместо теб.</footer>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 async function generate(){
  const result=document.getElementById("result");
@@ -132,7 +132,7 @@ async function generate(){
    body:JSON.stringify({
     request:document.getElementById("request").value,
     business:document.getElementById("business").value,
-    details:document.getElementById("details").value,
+    detailws:document.getElementById("details").value,
     style:document.getElementById("style").value,
     language:document.getElementById("language").value
    })
